@@ -1,0 +1,13 @@
+The Tilt-Tone Proposal
+Joshua Smith
+2/26/2016
+
+A gyroscope is tilted to change the frequency of a buzzer in a similar fashion to a theremin.
+
+An Arduino-Uno is the microcontroller being used.
+The 3-axis gyroscope is part of the GY-80 10 DOF chip, and will be used to find the angular velocity of the sensor which can be used to detect tilting. This tilting can then be used to change the pitch of a buzzer.
+The buzzer is going to be driven by a varying frequency square wave produced by a pulse width modulation capable output pin on the Arduino. The buzzer will be wired through a variable resistor to enable volume control.
+The Tilt-Tone will have two modes. In mode 1, the buzzer will linearly play every frequency in between a minimum and maximum frequency. This will allow it to slide between pitches. For example, going from 262 Hz to 277 Hz will also play all 14 frequencies in between those two values.
+In mode 2, the buzzer will only play discrete notes found in the Western scale (A, A#, B, etc.). Tilting the gyroscope a certain amount will jump the frequency to the next note, skipping those in between. For example, going from middle C (262 Hz) to C# (277 Hz) will be a discrete jump, and will not play any frequencies between the two notes.
+To switch between the two notes, a push button will be used with a bi-color LED switching to indicate the mode.
+Whenever the program is first started, the gyroscope will automatically calibrate. The user simply has to place it on a flat stable surface when the program is beginning.
