@@ -1,0 +1,192 @@
+//Tilt Tone
+//Author: Joshua Smith
+//This program reads in values from a 3-axis gyroscope
+//and uses them to control the pitch of a buzzer using the x
+//axis values. The pitch frequency either varies continuously or
+//varies by note depending on the mode. The mode is switched by
+//pressing a push button. The current mode is shown by the color
+//of the LED
+//
+//The portion of this program related to setting up
+//and using the gyroscope was borrowed from the following
+//source: http://bildr.org/2011/06/l3g4200d-arduino/
+
+//Arduino 1.0+ only
+
+//Borrowed code
+#include <Wire.h>
+
+#define CTRL_REG1 0x20
+#define CTRL_REG2 0x21
+#define CTRL_REG3 0x22
+#define CTRL_REG4 0x23
+#define CTRL_REG5 0x24
+
+int L3G4200D_Address = 105; //I2C address of the L3G4200D
+
+int x;
+int y;
+int z;
+// End of borrowed code
+
+int xzero;                            // calibrated x value
+int sens = 60;                        // sensitivity
+int minfreq = 10;                     // minimum frequency
+int maxfreq = 300;                    // maximum frequency
+int freq = (maxfreq - minfreq) / 2;   // initializes frequency halfway
+int freqincr = 5;                     // frequncy increment
+bool mode = false;                    // buzzer mode defaults to descrete notes
+
+// Pin values
+int RED = 2;
+int GREEN = 3;
+int BUTTON = 4;
+int BUZZER = 9;
+
+// Array of notes from C4 to C5
+int note[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 523};
+int pitch = sizeof(note) / 2;  // initializes pitch halfway
+
+
+void setup() {
+
+  Wire.begin();
+  Serial.begin(9600);
+
+  Serial.println("starting up L3G4200D");
+  setupL3G4200D(2000); // Configure L3G4200  - 250, 500 or 2000 deg/sec
+
+  delay(1500); //wait for the sensor to be ready
+
+  // Calibrate gyroscope from level surface
+  getGyroValues();
+  xzero = x;
+
+  // Initialize pins
+  pinMode(BUZZER, OUTPUT);     // PWM pin for buzzer
+  pinMode(RED, OUTPUT);        // Red portion of bi-color LED
+  pinMode(GREEN, OUTPUT);      // Green portion of bi-color LED
+  pinMode(BUTTON, INPUT);      // Pin for push button
+  digitalWrite(BUTTON, HIGH);  // Activates pull-up resistor for push button
+}
+
+
+void loop() {
+
+  getGyroValues();  // This will update x, y, and z with new values
+
+  // Increments frequency when tilted forward
+  if (x > xzero + sens && freq < maxfreq) {
+    freq = freq + freqincr;
+  }
+
+  // Decrements frequency when tilted backward
+  else if (x < xzero - sens && freq > minfreq) {
+    freq = freq - freqincr;
+  }
+
+  // Increments pitch when tilted forward
+  if (x > xzero + sens * 10 && pitch < sizeof(note) - 1) {
+    pitch++;
+    delay(50);  // keeps pitch from changing too quickly
+  }
+
+  // Decrements pitch when tilted backward
+  else if (x < xzero - sens * 10 && pitch > 0) {
+    pitch--;
+    delay(50);  // keeps pitch from changing too quickly
+  }
+
+
+  // Switch modes
+  if (digitalRead(BUTTON) == 0) {
+    mode = !mode;
+    delay(150);  // Prevents switch bounce
+  }
+
+  // Continuous frequency mode indicated by green LED
+  if (mode) {
+    tone(BUZZER, freq);
+    digitalWrite(RED, LOW);
+    digitalWrite(GREEN, HIGH);
+  }
+
+  // Discrete note mode indicated by red LED
+  if (!mode) {
+    tone(BUZZER, note[pitch]);
+    digitalWrite(RED, HIGH);
+    digitalWrite(GREEN, LOW);
+  }
+
+  delay(10);  // prevents gyroscope value from changing too quickly
+}
+
+//Borrowed function used to update gyroscope input values
+void getGyroValues() {
+
+  byte xMSB = readRegister(L3G4200D_Address, 0x29);
+  byte xLSB = readRegister(L3G4200D_Address, 0x28);
+  x = ((xMSB << 8) | xLSB);
+
+  byte yMSB = readRegister(L3G4200D_Address, 0x2B);
+  byte yLSB = readRegister(L3G4200D_Address, 0x2A);
+  y = ((yMSB << 8) | yLSB);
+
+  byte zMSB = readRegister(L3G4200D_Address, 0x2D);
+  byte zLSB = readRegister(L3G4200D_Address, 0x2C);
+  z = ((zMSB << 8) | zLSB);
+}
+
+int setupL3G4200D(int scale) {
+  //From  Jim Lindblom of Sparkfun's code
+
+  // Enable x, y, z and turn off power down:
+  writeRegister(L3G4200D_Address, CTRL_REG1, 0b00001111);
+
+  // If you'd like to adjust/use the HPF, you can edit the line below to configure CTRL_REG2:
+  writeRegister(L3G4200D_Address, CTRL_REG2, 0b00000000);
+
+  // Configure CTRL_REG3 to generate data ready interrupt on INT2
+  // No interrupts used on INT1, if you'd like to configure INT1
+  // or INT2 otherwise, consult the datasheet:
+  writeRegister(L3G4200D_Address, CTRL_REG3, 0b00001000);
+
+  // CTRL_REG4 controls the full-scale range, among other things:
+
+  if (scale == 250) {
+    writeRegister(L3G4200D_Address, CTRL_REG4, 0b00000000);
+  } else if (scale == 500) {
+    writeRegister(L3G4200D_Address, CTRL_REG4, 0b00010000);
+  } else {
+    writeRegister(L3G4200D_Address, CTRL_REG4, 0b00110000);
+  }
+
+  // CTRL_REG5 controls high-pass filtering of outputs, use it
+  // if you'd like:
+  writeRegister(L3G4200D_Address, CTRL_REG5, 0b00000000);
+}
+
+void writeRegister(int deviceAddress, byte address, byte val) {
+  Wire.beginTransmission(deviceAddress); // start transmission to device
+  Wire.write(address);       // send register address
+  Wire.write(val);         // send value to write
+  Wire.endTransmission();     // end transmission
+}
+
+int readRegister(int deviceAddress, byte address) {
+
+  int v;
+  Wire.beginTransmission(deviceAddress);
+  Wire.write(address); // register to read
+  Wire.endTransmission();
+
+  Wire.requestFrom(deviceAddress, 1); // read a byte
+
+  while (!Wire.available()) {
+    // waiting
+  }
+
+  v = Wire.read();
+  return v;
+}
+// End of borrowed code
