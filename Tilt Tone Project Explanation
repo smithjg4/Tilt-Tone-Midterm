@@ -1,0 +1,8 @@
+For my midterm project I chose the GY-80 BMP085 9-axis magnetic acceleration gyroscope atmospheric pressure module.
+I used the gyroscope that is attached to this chip to detect angluar velocity which can be used to detect tilt.
+Using borrowed code I was able to read in x, y, and z values from teh gyroscope.
+I then used these values to vary the pitch on a buzzer using a square wave generated on the Arduino.
+The buzzer had two modes that a push button selected between. 
+In the first mode the pitch was varied continuously through every frequency.
+In the second mode the pitch varied discretely between indvidual notes.
+A bi-color LED showed which mode was selected.
